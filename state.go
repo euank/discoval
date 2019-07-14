@@ -3,46 +3,19 @@ package main
 import (
 	"fmt"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/andersfylling/disgord"
 	"github.com/inconshreveable/log15"
 	"github.com/russross/blackfriday/v2"
 )
 
-type evalSessionPiece struct {
-	user     disgord.Snowflake
-	contents string
-}
-
-type evalSession struct {
-	channel   disgord.Snowflake
-	expiresAt time.Time
-	contents  []*evalCode
-}
-
-func (s *evalSession) addCode(code *evalCode) {
-	s.contents = append(s.contents, code)
-	s.expiresAt = time.Now().Add(1 * time.Hour)
-}
-
 type evalSessions struct {
-	mu sync.Mutex
-	// sessionID -> evalSessions
-	sessions map[string]*evalSession
-
-	// channelID -> sessionIDs
-	channelSessions map[disgord.Snowflake][]string
-
-	client *disgord.Client
+	EvalKey string
 }
 
-func NewEvalSessions(client *disgord.Client) *evalSessions {
+func NewEvalSessions(client *disgord.Client, evalKey string) *evalSessions {
 	return &evalSessions{
-		sessions:        make(map[string]*evalSession),
-		channelSessions: make(map[disgord.Snowflake][]string),
-		client:          client,
+		EvalKey: evalKey,
 	}
 }
 
@@ -54,37 +27,18 @@ func (e *evalSessions) OnMessage(s disgord.Session, data *disgord.MessageCreate)
 		return
 	}
 
-	sessionsToRun := map[string]*evalSession{}
+	replyParts := []string{}
 
-Outer:
 	for _, code := range codes {
-		if code.id == "" {
-			code.id = fmt.Sprintf("%s", msg.ID)
+		resp, err := e.runCode(code.language, code.contents)
+		if err != nil {
+			replyParts = append(replyParts, fmt.Sprintf("error running code: %v", err.Error()))
+			continue
 		}
-
-		// We have code to run now. First let's see if this id has an existing session
-		sessions := e.channelSessions[msg.ChannelID]
-		for _, sess := range sessions {
-			if sess == code.id {
-				existingSess := e.sessions[sess]
-				existingSess.addCode(code)
-				sessionsToRun[sess] = existingSess
-				continue Outer
-			}
-		}
-		// new session
-		newSess := &evalSession{
-			channel:   msg.ChannelID,
-			expiresAt: time.Now().Add(1 * time.Hour),
-			contents:  []*evalCode{code},
-		}
-		e.sessions[code.id] = newSess
-		if e.channelSessions[msg.ChannelID] == nil {
-			e.channelSessions[msg.ChannelID] = []string{}
-		}
-		e.channelSessions[msg.ChannelID] = append(e.channelSessions[msg.ChannelID], code.id)
-		sessionsToRun[code.id] = newSess
+		replyParts = append(replyParts, resp)
 	}
+
+	msg.Reply(s, strings.Join(replyParts, "\n\n"))
 }
 
 func (e *evalSessions) OnUpdate(s disgord.Session, data *disgord.MessageCreate) {
@@ -94,9 +48,7 @@ func (e *evalSessions) OnUpdate(s disgord.Session, data *disgord.MessageCreate) 
 }
 
 type evalCode struct {
-	id       string
 	language string
-	filename string
 	contents string
 }
 
@@ -108,10 +60,6 @@ func evalCodeFromCommand(s string) (*evalCode, error) {
 		switch {
 		case cmd == "":
 			continue
-		case strings.HasPrefix(cmd, "file="):
-			ret.filename = cmd[len("file="):]
-		case strings.HasPrefix(cmd, "id="):
-			ret.id = cmd[len("id="):]
 		case strings.HasPrefix(cmd, "lang="):
 			ret.language = cmd[len("lang="):]
 		default:
@@ -122,14 +70,8 @@ func evalCodeFromCommand(s string) (*evalCode, error) {
 }
 
 func (e *evalCode) merge(rhs *evalCode) {
-	if rhs.id != "" {
-		e.id = rhs.id
-	}
 	if rhs.language != "" {
 		e.language = rhs.language
-	}
-	if rhs.filename != "" {
-		e.filename = rhs.filename
 	}
 	if rhs.contents != "" {
 		e.contents = rhs.contents

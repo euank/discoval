@@ -21,7 +21,13 @@ func main() {
 	})
 	defer client.StayConnectedUntilInterrupted()
 
-	evalSessions := NewEvalSessions(client)
+	evalKey := os.Getenv("EVAL_KEY")
+	if evalKey == "" {
+		log15.Error("EVAL_KEY must be set")
+		os.Exit(1)
+	}
+
+	evalSessions := NewEvalSessions(client, evalKey)
 
 	log, _ := std.NewLogFilter(client)
 	filter, _ := std.NewMsgFilter(client)
