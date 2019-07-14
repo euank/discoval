@@ -84,7 +84,7 @@ func (e *evalCode) copy() *evalCode {
 }
 
 func (e *evalSessions) parseForBot(msg *disgord.Message) ([]*evalCode, error) {
-	parsed := blackfriday.New().Parse([]byte(msg.Content))
+	parsed := blackfriday.New(blackfriday.WithExtensions(blackfriday.CommonExtensions)).Parse([]byte(msg.Content))
 
 	var retErr error
 	var evaling bool
@@ -95,11 +95,9 @@ func (e *evalSessions) parseForBot(msg *disgord.Message) ([]*evalCode, error) {
 		if !entering {
 			return blackfriday.GoToNext
 		}
-
 		switch n.Type {
 		case blackfriday.Document, blackfriday.Paragraph, blackfriday.Text:
 			if strings.HasPrefix(string(n.Literal), "!eval") {
-				log15.Info("evaling code")
 				evaling = true
 				newEvalCode, err := evalCodeFromCommand(strings.TrimSpace(strings.TrimPrefix(string(n.Literal), "!eval")))
 				if err != nil {
