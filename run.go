@@ -59,5 +59,8 @@ func formatResp(r *RunResponse) string {
 	if r.Timeout {
 		parts = append(parts, "request timed out")
 	}
+	if len(parts) == 0 {
+		parts = append(parts, "no output")
+	}
 	return strings.Join(parts, "\n")
 }
