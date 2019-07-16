@@ -41,7 +41,7 @@ func (e *evalSessions) OnMessage(s disgord.Session, data *disgord.MessageCreate)
 	msg.Reply(s, strings.Join(replyParts, "\n\n"))
 }
 
-func (e *evalSessions) OnUpdate(s disgord.Session, data *disgord.MessageCreate) {
+func (e *evalSessions) OnUpdate(s disgord.Session, data *disgord.MessageUpdate) {
 	msg := data.Message
 	_ = msg
 	// TODO
