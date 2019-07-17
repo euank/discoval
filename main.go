@@ -29,8 +29,7 @@ func main() {
 
 	evalSessions := NewEvalSessions(client, evalKey)
 
-	log, _ := std.NewLogFilter(client)
 	filter, _ := std.NewMsgFilter(client)
-	client.On(disgord.EvtMessageCreate, filter.NotByBot, log.LogMsg, evalSessions.OnMessage)
-	client.On(disgord.EvtMessageUpdate, filter.NotByBot, log.LogMsg, evalSessions.OnUpdate)
+	client.On(disgord.EvtMessageCreate, filter.NotByBot, evalSessions.OnMessage)
+	client.On(disgord.EvtMessageUpdate, filter.NotByBot, evalSessions.OnUpdate)
 }
