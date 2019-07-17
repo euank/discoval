@@ -21,7 +21,7 @@ func NewEvalSessions(client *disgord.Client, evalKey string) *evalSessions {
 
 func (e *evalSessions) OnMessage(s disgord.Session, data *disgord.MessageCreate) {
 	msg := data.Message
-	codes, err := e.parseForBot(msg)
+	codes, err := parseForBot(msg.Content)
 	if err != nil {
 		msg.Reply(s, err.Error())
 		return
@@ -83,8 +83,8 @@ func (e *evalCode) copy() *evalCode {
 	return &c
 }
 
-func (e *evalSessions) parseForBot(msg *disgord.Message) ([]*evalCode, error) {
-	parsed := blackfriday.New(blackfriday.WithExtensions(blackfriday.CommonExtensions)).Parse([]byte(msg.Content))
+func parseForBot(msg string) ([]*evalCode, error) {
+	parsed := blackfriday.New(blackfriday.WithExtensions(blackfriday.CommonExtensions)).Parse([]byte(msg))
 
 	var retErr error
 	var evaling bool
@@ -106,21 +106,13 @@ func (e *evalSessions) parseForBot(msg *disgord.Message) ([]*evalCode, error) {
 				}
 				evalCommandCode = newEvalCode
 			}
-		case blackfriday.CodeBlock, blackfriday.Code:
+		case blackfriday.CodeBlock:
 			if !evaling {
 				break
 			}
 			blockCode := evalCommandCode.copy()
-			lines := strings.Split(string(n.Literal), "\n")
-			if len(n.CodeBlockData.Info) > 0 {
-				blockCode.language = strings.TrimSpace(string(n.CodeBlockData.Info))
-				blockCode.contents = strings.Join(lines, "\n")
-			} else if n.Type == blackfriday.Code {
-				if len(lines) > 0 && lines[0] != "" {
-					blockCode.language = lines[0]
-				}
-				blockCode.contents = strings.Join(lines[1:], "\n")
-			}
+			blockCode.language = string(n.CodeBlockData.Info)
+			blockCode.contents = string(n.Literal)
 			result = append(result, blockCode)
 		default:
 			log15.Debug("ignoring block we don't care about", "blocktype", n.Type)
