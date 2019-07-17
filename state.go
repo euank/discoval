@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -97,15 +99,18 @@ func parseForBot(msg string) ([]*evalCode, error) {
 		}
 		switch n.Type {
 		case blackfriday.Document, blackfriday.Paragraph, blackfriday.Text:
-			str := strings.TrimSpace(string(n.Literal))
-			if strings.HasPrefix(str, "!eval") {
-				evaling = true
-				newEvalCode, err := evalCodeFromCommand(strings.TrimSpace(strings.TrimPrefix(str, "!eval")))
-				if err != nil {
-					retErr = err
-					return blackfriday.Terminate
+			lines := bufio.NewScanner(bytes.NewReader(n.Literal))
+			for lines.Scan() {
+				line := strings.TrimSpace(lines.Text())
+				if strings.HasPrefix(line, "!eval") {
+					evaling = true
+					newEvalCode, err := evalCodeFromCommand(strings.TrimSpace(strings.TrimPrefix(line, "!eval")))
+					if err != nil {
+						retErr = err
+						return blackfriday.Terminate
+					}
+					evalCommandCode = newEvalCode
 				}
-				evalCommandCode = newEvalCode
 			}
 		case blackfriday.CodeBlock:
 			if !evaling {

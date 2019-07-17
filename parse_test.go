@@ -38,6 +38,15 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: "foo bar\n!eval\n```py\nprint('test')\n```\n(baz)",
+			expected: []*evalCode{
+				{
+					language: "py",
+					contents: "print('test')\n",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
