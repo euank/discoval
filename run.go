@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/inconshreveable/log15"
 )
 
 const api = "https://eval2.esk.io"
@@ -37,7 +40,12 @@ func (e *evalSessions) runCode(lang, code string) (string, error) {
 		return "", fmt.Errorf("error making eval request: %v", err)
 	}
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("error making eval request: StatusCode %d", resp.StatusCode)
+		errText, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log15.Error("could not read response body", "err", err)
+			return "", fmt.Errorf("error making eval request: StatusCode %d", resp.StatusCode)
+		}
+		return "", fmt.Errorf("error making eval request: %s", string(errText))
 	}
 	var eresp evalResp
 	if err := json.NewDecoder(resp.Body).Decode(&eresp); err != nil {
