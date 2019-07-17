@@ -97,9 +97,10 @@ func parseForBot(msg string) ([]*evalCode, error) {
 		}
 		switch n.Type {
 		case blackfriday.Document, blackfriday.Paragraph, blackfriday.Text:
-			if strings.HasPrefix(string(n.Literal), "!eval") {
+			str := strings.TrimSpace(string(n.Literal))
+			if strings.HasPrefix(str, "!eval") {
 				evaling = true
-				newEvalCode, err := evalCodeFromCommand(strings.TrimSpace(strings.TrimPrefix(string(n.Literal), "!eval")))
+				newEvalCode, err := evalCodeFromCommand(strings.TrimSpace(strings.TrimPrefix(str, "!eval")))
 				if err != nil {
 					retErr = err
 					return blackfriday.Terminate
@@ -115,7 +116,7 @@ func parseForBot(msg string) ([]*evalCode, error) {
 			blockCode.contents = string(n.Literal)
 			result = append(result, blockCode)
 		default:
-			log15.Debug("ignoring block we don't care about", "blocktype", n.Type)
+			log15.Debug("ignoring block we don't care about", "blocktype", n.Type, "s", string(n.Literal))
 		}
 
 		return blackfriday.GoToNext
